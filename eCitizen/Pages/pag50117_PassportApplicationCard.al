@@ -23,6 +23,36 @@ page 50117 "Passport Application Card"
                 field("Phone No."; Rec."Phone No.") { }
                 field("Email"; Rec."Email") { }
             }
+            part(Attachments; "Doc. Attachment List Factbox")
+            {
+                ApplicationArea = All;
+                SubPageLink =
+                    "Table ID" = const(Database::"Passport Application Header"),
+                    "No." = field("No.");
+            }
+
+            // =========================
+            // 👤 Additional Personal Info
+            // =========================
+            group("Additional Personal Information")
+            {
+                field("Place of Birth"; Rec."Place of Birth") { }
+                field(Occupation; Rec.Occupation) { }
+                field("Employment Status"; Rec."Employment Status") { }
+                field(Religion; Rec.Religion) { }
+            }
+
+            // =========================
+            // 🚨 Emergency Contact
+            // =========================
+            group("Emergency Contact")
+            {
+                field("Emergency Contact Name"; Rec."Emergency Contact Name") { }
+                field("Emergency Contact Phone"; Rec."Emergency Contact Phone") { }
+                field("Emergency Contact Relationship"; Rec."Emergency Contact Relationship") { }
+                field("Emergency Contact Address"; Rec."Emergency Contact Address") { }
+            }
+
             part(Documents; "Passport Document Subpage")
             {
                 ApplicationArea = All;
@@ -38,21 +68,30 @@ page 50117 "Passport Application Card"
             }
         }
     }
+
     actions
     {
         area(Processing)
         {
-            action(Attachments)
+            action(OpenAttachments)
             {
                 ApplicationArea = All;
                 Caption = 'Attachments';
                 Image = Attach;
 
                 trigger OnAction()
+                var
+                    DocAttachment: Record "Document Attachment";
+                    DocumentAttachmentDetails: Page "Document Attachment Details";
                 begin
-                    Message('Attachments feature to be connected.');
+                    DocAttachment.SetRange("Table ID", Database::"Passport Application Header");
+                    DocAttachment.SetRange("No.", Rec."No.");
+
+                    DocumentAttachmentDetails.SetTableView(DocAttachment);
+                    DocumentAttachmentDetails.RunModal();
                 end;
             }
+
             action(SubmitApplication)
             {
                 ApplicationArea = All;
@@ -72,8 +111,8 @@ page 50117 "Passport Application Card"
 
                     if Rec."Completion %" < 100 then
                         Error(
-                          'Application is only %1%% complete. All required documents must be submitted.',
-                          Rec."Completion %");
+                            'Application is only %1%% complete. All required documents must be submitted.',
+                            Rec."Completion %");
 
                     if Rec.Status <> Rec.Status::Open then
                         Error('Only Open applications can be submitted.');

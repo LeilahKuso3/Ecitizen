@@ -84,6 +84,51 @@ table 50117 "Passport Application Header"
             Caption = 'Completion %';
             Editable = false;
         }
+        // =========================
+// 👤 ADDITIONAL PERSONAL INFO
+// =========================
+field(21; "Place of Birth"; Text[100])
+{
+    Caption = 'Place of Birth';
+}
+
+field(22; Occupation; Text[100])
+{
+    Caption = 'Occupation';
+}
+
+field(23; "Employment Status"; Option)
+{
+    Caption = 'Employment Status';
+    OptionMembers = Employed,Unemployed,Student,SelfEmployed;
+}
+
+field(24; Religion; Text[50])
+{
+    Caption = 'Religion';
+}
+
+// =========================
+// =========================
+field(25; "Emergency Contact Name"; Text[100])
+{
+    Caption = 'Emergency Contact Name';
+}
+
+field(26; "Emergency Contact Phone"; Text[30])
+{
+    Caption = 'Emergency Contact Phone';
+}
+
+field(27; "Emergency Contact Relationship"; Text[50])
+{
+    Caption = 'Relationship';
+}
+
+field(28; "Emergency Contact Address"; Text[100])
+{
+    Caption = 'Address';
+}
     }
 
     keys
