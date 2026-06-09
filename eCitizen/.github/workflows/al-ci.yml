@@ -1,4 +1,4 @@
-name: AL Passport CI
+name: CI Pipeline
 
 on:
   push:
