@@ -1,70 +1,58 @@
 param(
-    [string]$AppJsonPath = (Join-Path $PSScriptRoot "..\..\eCitizen\app.json"),
     [string]$ProjectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path,
-    [string]$OutputFolder = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path "out"),
-    [string]$ContainerName = "eCitizenBuild-$($env:GITHUB_RUN_ID)"
+    [string]$OutputFolder = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path "out")
 )
 
 Set-StrictMode -Version Latest
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
 
-Write-Host "Importing BcContainerHelper..."
-Import-Module BcContainerHelper -ErrorAction Stop
+if (-not (Test-Path $ProjectPath)) {
+    throw "Project path not found: $ProjectPath"
+}
+
+$AppJsonPath = Join-Path $ProjectPath "app.json"
+if (-not (Test-Path $AppJsonPath)) {
+    throw "app.json not found at $AppJsonPath"
+}
 
 Write-Host "Loading app.json from $AppJsonPath"
 $app = Get-Content -Path $AppJsonPath -Raw | ConvertFrom-Json
 $appName = $app.name
 $appPublisher = $app.publisher
-$appVersion = $app.application
+$appVersion = $app.version
 Write-Host "Project: $appPublisher.$appName v$appVersion"
 
-Write-Host "Resolving artifact URL for BC $appVersion..."
-$artifactUrl = Get-BCArtifactUrl -Type Sandbox -Country w1 -Select Latest -Version $appVersion
-if ([string]::IsNullOrWhiteSpace($artifactUrl)) {
-    $versionSegments = $appVersion.Split('.')
-    if ($versionSegments.Length -ge 2) {
-        $fallbackVersion = "$($versionSegments[0]).$($versionSegments[1])"
-        Write-Host "Exact version lookup failed; trying fallback version $fallbackVersion..."
-        $artifactUrl = Get-BCArtifactUrl -Type Sandbox -Country w1 -Select Latest -Version $fallbackVersion
-    }
+$packagesFolder = Join-Path $ProjectPath ".alpackages"
+if (-not (Test-Path $packagesFolder)) {
+    throw "Symbol folder not found: $packagesFolder. Add your .alpackages folder or download symbols before building."
 }
-if ([string]::IsNullOrWhiteSpace($artifactUrl)) {
-    throw "Unable to resolve BC artifact URL for version $appVersion"
-}
-Write-Host "Artifact URL: $artifactUrl"
 
-$projectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path
+Write-Host "Searching for AL compiler in VS Code extension folder..."
+$extensionsFolder = Join-Path $env:USERPROFILE ".vscode\extensions"
+if (-not (Test-Path $extensionsFolder)) {
+    throw "VS Code extensions folder not found: $extensionsFolder. Install the AL Language extension first."
+}
+
+$alcPaths = Get-ChildItem -Path $extensionsFolder -Directory -Filter "ms-dynamics-smb.al*" -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName "bin\alc.exe" }
+
+$alcPath = $alcPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $alcPath) {
+    throw "AL compiler not found in VS Code extension folder. Install the AL Language extension in VS Code."
+}
+
+Write-Host "Using AL compiler: $alcPath"
 New-Item -ItemType Directory -Force -Path $OutputFolder | Out-Null
-$appFile = Join-Path $projectPath "$($appPublisher)_$($appName)_$($appVersion).app"
+$appFile = Join-Path $OutputFolder "$($appPublisher)_$($appName)_$($appVersion).app"
 
-$dotNetPackagesFolder = Join-Path $projectPath ".netPackages"
-$publishParams = @{
-    containerName = $ContainerName
-    appFile = $appFile
-}
-if (Test-Path $dotNetPackagesFolder) {
-    $publishParams.appDotNetPackagesFolder = $dotNetPackagesFolder
+Write-Host "Compiling project from $ProjectPath to $appFile"
+& $alcPath /project:$ProjectPath /out:$appFile /packagecachepath:$packagesFolder
+if ($LASTEXITCODE -ne 0) {
+    throw "AL compilation failed with exit code $LASTEXITCODE"
 }
 
-try {
-    Write-Host "Creating BC container '$ContainerName'..."
-    New-BcContainer -accept_eula -containerName $ContainerName -artifactUrl $artifactUrl -memoryLimit 8G -updateHosts -alwaysPull
-
-    Write-Host "Publishing AL project to BC container..."
-    Publish-NewApplicationToBcContainer @publishParams
-
-    # Verify app file was generated AFTER build completes
-    if (-Not (Test-Path $appFile)) {
-        throw "App file was not generated: $appFile"
-    }
-    Write-Host "Build succeeded: $appFile"
-    
-    # Copy to output folder
-    Copy-Item -Path $appFile -Destination $OutputFolder -Force
+if (-not (Test-Path $appFile)) {
+    throw "Compiled app was not generated: $appFile"
 }
-finally {
-    if (Get-BcContainers | Where-Object { $_.Name -eq $ContainerName }) {
-        Write-Host "Removing container $ContainerName"
-        Remove-BcContainer -containerName $ContainerName -force -confirm:$false
-    }
-}
+
+Write-Host "Build succeeded: $appFile"

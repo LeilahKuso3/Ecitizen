@@ -15,20 +15,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install BCContainerHelper
+      - name: Install VS Code AL Language extension
         shell: pwsh
         run: |
-          Install-Module -Name BcContainerHelper -Scope CurrentUser -Force -AllowClobber
-          Import-Module BcContainerHelper
+          $code = Get-Command code -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue
+          if (-not $code) {
+            $code = "$env:ProgramFiles\Microsoft VS Code\bin\code.cmd"
+          }
+          if (-not (Test-Path $code)) {
+            throw 'VS Code CLI not found on runner. Use a Windows runner with VS Code installed.'
+          }
+          & $code --install-extension ms-dynamics-smb.al --force
 
-      - name: Build AL app in BC container
+      - name: Build AL app with direct compiler
         shell: pwsh
         run: |
-          $script = Join-Path $env:GITHUB_WORKSPACE ".github\scripts\build-app.ps1"
-          & $script
+          $script = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/build-app.ps1"
+          & $script -ProjectPath (Join-Path $env:GITHUB_WORKSPACE "eCitizen") -OutputFolder (Join-Path $env:GITHUB_WORKSPACE "eCitizen\out")
 
       - name: Upload compiled app artifact
         uses: actions/upload-artifact@v4
         with:
           name: eCitizen-app
-          path: out/**/*.app
+          path: eCitizen/out/**/*.app
