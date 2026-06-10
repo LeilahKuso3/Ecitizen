@@ -18,7 +18,7 @@ $appVersion = $app.application
 Write-Host "Project: $appPublisher.$appName v$appVersion"
 
 Write-Host "Resolving artifact URL for BC $appVersion..."
-$artifactUrl = Get-BcContainerArtifactUrl -select Latest -version $appVersion
+$artifactUrl = Get-BCArtifactUrl -Type Sandbox -Country w1 -Select Latest -Version $appVersion
 if ([string]::IsNullOrWhiteSpace($artifactUrl)) {
     throw "Unable to resolve BC artifact URL for version $appVersion"
 }
