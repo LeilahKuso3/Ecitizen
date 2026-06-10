@@ -35,8 +35,16 @@ jobs:
           }
           $json = $body | ConvertTo-Json -Depth 10
           $response = Invoke-RestMethod -Uri $queryUrl -Method Post -ContentType 'application/json' -Body $json -Headers @{ 'User-Agent' = 'Mozilla/5.0' }
-          $asset = $response.results[0].extensions[0].versions[0].files |
-            Where-Object { $_.assetTypeId -eq 'Microsoft.VisualStudio.Services.VSIXPackage' } |
+          $asset = $response.results |
+            ForEach-Object { $_.extensions } |
+            ForEach-Object { $_.versions } |
+            ForEach-Object {
+              $files = @()
+              if ($_.PSObject.Properties.Match('files')) { $files += $_.files }
+              if ($_.PSObject.Properties.Match('assets')) { $files += $_.assets }
+              $files
+            } |
+            Where-Object { $_.assetTypeId -eq 'Microsoft.VisualStudio.Services.VSIXPackage' -or $_.assetType -eq 'Microsoft.VisualStudio.Services.VSIXPackage' } |
             Select-Object -First 1
           if (-not $asset) {
             throw 'AL VSIX asset not found from Marketplace query.'
