@@ -1,5 +1,5 @@
 param(
-    [string]$AppJsonPath = (Join-Path $PSScriptRoot "..\..\app.json"),
+    [string]$AppJsonPath = (Join-Path $PSScriptRoot "..\..\eCitizen\app.json"),
     [string]$OutputFolder = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path "out"),
     [string]$ContainerName = "eCitizenBuild-$($env:GITHUB_RUN_ID)"
 )
