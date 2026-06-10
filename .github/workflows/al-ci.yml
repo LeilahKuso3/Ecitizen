@@ -18,10 +18,33 @@ jobs:
       - name: Download AL Language extension
         shell: pwsh
         run: |
-          $vsixUrl = 'https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/extensions/al/latest/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage'
+          $queryUrl = 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=3.0-preview.1'
+          $body = @{
+            filters = @(
+              @{
+                criteria = @(
+                  @{ filterType = 7; value = 'ms-dynamics-smb.al' }
+                )
+                pageSize = 1
+                pageNumber = 1
+                sortBy = 0
+                sortOrder = 0
+              }
+            )
+            flags = 103
+          }
+          $json = $body | ConvertTo-Json -Depth 10
+          $response = Invoke-RestMethod -Uri $queryUrl -Method Post -ContentType 'application/json' -Body $json -Headers @{ 'User-Agent' = 'Mozilla/5.0' }
+          $asset = $response.results[0].extensions[0].versions[0].files |
+            Where-Object { $_.assetTypeId -eq 'Microsoft.VisualStudio.Services.VSIXPackage' } |
+            Select-Object -First 1
+          if (-not $asset) {
+            throw 'AL VSIX asset not found from Marketplace query.'
+          }
+          $vsixUrl = $asset.source
           $vsixPath = Join-Path $env:TEMP 'al-language.vsix'
-          Write-Host "Downloading AL extension from $vsixUrl"
-          Invoke-WebRequest -Uri $vsixUrl -OutFile $vsixPath -UseBasicParsing
+          Write-Host "Downloading AL extension VSIX from $vsixUrl"
+          Invoke-WebRequest -Uri $vsixUrl -OutFile $vsixPath -UseBasicParsing -Headers @{ 'User-Agent' = 'Mozilla/5.0' }
           $extPath = Join-Path $env:TEMP 'al-language-ext'
           Remove-Item -Recurse -Force $extPath -ErrorAction SilentlyContinue
           Expand-Archive -Path $vsixPath -DestinationPath $extPath -Force
