@@ -30,10 +30,8 @@ if (-not (Test-Path $packagesFolder)) {
 
 if ($AlExtensionPath -and (Test-Path $AlExtensionPath)) {
     Write-Host "Using provided AL extension path: $AlExtensionPath"
-    $alcPath = Join-Path $AlExtensionPath "extension\bin\alc.exe"
-    if (-not (Test-Path $alcPath)) {
-        $alcPath = Join-Path $AlExtensionPath "bin\alc.exe"
-    }
+    $alcPath = Get-ChildItem -Path $AlExtensionPath -Recurse -Filter alc.exe -File -ErrorAction SilentlyContinue |
+        Select-Object -First 1 | Select-Object -ExpandProperty FullName
 } else {
     Write-Host "Searching for AL compiler in local VS Code extension folder..."
     $extensionsFolder = Join-Path $env:USERPROFILE ".vscode\extensions"
@@ -41,10 +39,8 @@ if ($AlExtensionPath -and (Test-Path $AlExtensionPath)) {
         throw "VS Code extensions folder not found: $extensionsFolder. Install the AL Language extension first."
     }
 
-    $alcPaths = Get-ChildItem -Path $extensionsFolder -Directory -Filter "ms-dynamics-smb.al*" -ErrorAction SilentlyContinue |
-        Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName "bin\alc.exe" }
-
-    $alcPath = $alcPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+    $alcPath = Get-ChildItem -Path $extensionsFolder -Recurse -Filter alc.exe -File -ErrorAction SilentlyContinue |
+        Select-Object -First 1 | Select-Object -ExpandProperty FullName
 }
 
 if (-not $alcPath -or -not (Test-Path $alcPath)) {
