@@ -21,6 +21,14 @@ Write-Host "Project: $appPublisher.$appName v$appVersion"
 Write-Host "Resolving artifact URL for BC $appVersion..."
 $artifactUrl = Get-BCArtifactUrl -Type Sandbox -Country w1 -Select Latest -Version $appVersion
 if ([string]::IsNullOrWhiteSpace($artifactUrl)) {
+    $versionSegments = $appVersion.Split('.')
+    if ($versionSegments.Length -ge 2) {
+        $fallbackVersion = "$($versionSegments[0]).$($versionSegments[1])"
+        Write-Host "Exact version lookup failed; trying fallback version $fallbackVersion..."
+        $artifactUrl = Get-BCArtifactUrl -Type Sandbox -Country w1 -Select Latest -Version $fallbackVersion
+    }
+}
+if ([string]::IsNullOrWhiteSpace($artifactUrl)) {
     throw "Unable to resolve BC artifact URL for version $appVersion"
 }
 Write-Host "Artifact URL: $artifactUrl"
