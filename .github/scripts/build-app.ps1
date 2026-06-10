@@ -33,7 +33,7 @@ if ([string]::IsNullOrWhiteSpace($artifactUrl)) {
 }
 Write-Host "Artifact URL: $artifactUrl"
 
-$projectPath = Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen").Path
+$projectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path
 New-Item -ItemType Directory -Force -Path $OutputFolder | Out-Null
 $appFile = Join-Path $projectPath "$($appPublisher)_$($appName)_$($appVersion).app"
 if (-Not (Test-Path $appFile)) {
