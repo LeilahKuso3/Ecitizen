@@ -15,23 +15,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install VS Code AL Language extension
+      - name: Download AL Language extension
         shell: pwsh
         run: |
-          $code = Get-Command code -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue
-          if (-not $code) {
-            $code = "$env:ProgramFiles\Microsoft VS Code\bin\code.cmd"
-          }
-          if (-not (Test-Path $code)) {
-            throw 'VS Code CLI not found on runner. Use a Windows runner with VS Code installed.'
-          }
-          & $code --install-extension ms-dynamics-smb.al --force
+          $vsixUrl = 'https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/extensions/al/latest/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage'
+          $vsixPath = Join-Path $env:TEMP 'al-language.vsix'
+          Write-Host "Downloading AL extension from $vsixUrl"
+          Invoke-WebRequest -Uri $vsixUrl -OutFile $vsixPath -UseBasicParsing
+          $extPath = Join-Path $env:TEMP 'al-language-ext'
+          Remove-Item -Recurse -Force $extPath -ErrorAction SilentlyContinue
+          Expand-Archive -Path $vsixPath -DestinationPath $extPath -Force
+          Write-Host "AL extension extracted to $extPath"
+          Add-Content -Path $env:GITHUB_ENV -Value "AL_EXTENSION_PATH=$extPath"
 
       - name: Build AL app with direct compiler
         shell: pwsh
         run: |
           $script = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/build-app.ps1"
-          & $script -ProjectPath (Join-Path $env:GITHUB_WORKSPACE "eCitizen") -OutputFolder (Join-Path $env:GITHUB_WORKSPACE "eCitizen\out")
+          & $script -ProjectPath (Join-Path $env:GITHUB_WORKSPACE "eCitizen") -OutputFolder (Join-Path $env:GITHUB_WORKSPACE "eCitizen\out") -AlExtensionPath $env:AL_EXTENSION_PATH
 
       - name: Upload compiled app artifact
         uses: actions/upload-artifact@v4

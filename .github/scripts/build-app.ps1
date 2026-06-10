@@ -1,6 +1,7 @@
 param(
     [string]$ProjectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path,
-    [string]$OutputFolder = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path "out")
+    [string]$OutputFolder = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path "out"),
+    [string]$AlExtensionPath = $env:AL_EXTENSION_PATH
 )
 
 Set-StrictMode -Version Latest
@@ -27,18 +28,27 @@ if (-not (Test-Path $packagesFolder)) {
     throw "Symbol folder not found: $packagesFolder. Add your .alpackages folder or download symbols before building."
 }
 
-Write-Host "Searching for AL compiler in VS Code extension folder..."
-$extensionsFolder = Join-Path $env:USERPROFILE ".vscode\extensions"
-if (-not (Test-Path $extensionsFolder)) {
-    throw "VS Code extensions folder not found: $extensionsFolder. Install the AL Language extension first."
+if ($AlExtensionPath -and (Test-Path $AlExtensionPath)) {
+    Write-Host "Using provided AL extension path: $AlExtensionPath"
+    $alcPath = Join-Path $AlExtensionPath "extension\bin\alc.exe"
+    if (-not (Test-Path $alcPath)) {
+        $alcPath = Join-Path $AlExtensionPath "bin\alc.exe"
+    }
+} else {
+    Write-Host "Searching for AL compiler in local VS Code extension folder..."
+    $extensionsFolder = Join-Path $env:USERPROFILE ".vscode\extensions"
+    if (-not (Test-Path $extensionsFolder)) {
+        throw "VS Code extensions folder not found: $extensionsFolder. Install the AL Language extension first."
+    }
+
+    $alcPaths = Get-ChildItem -Path $extensionsFolder -Directory -Filter "ms-dynamics-smb.al*" -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName "bin\alc.exe" }
+
+    $alcPath = $alcPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 
-$alcPaths = Get-ChildItem -Path $extensionsFolder -Directory -Filter "ms-dynamics-smb.al*" -ErrorAction SilentlyContinue |
-    Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName "bin\alc.exe" }
-
-$alcPath = $alcPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $alcPath) {
-    throw "AL compiler not found in VS Code extension folder. Install the AL Language extension in VS Code."
+if (-not $alcPath -or -not (Test-Path $alcPath)) {
+    throw "AL compiler not found. Provide AL extension path or install the AL Language extension."
 }
 
 Write-Host "Using AL compiler: $alcPath"
