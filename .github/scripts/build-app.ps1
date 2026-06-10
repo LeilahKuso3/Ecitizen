@@ -36,11 +36,6 @@ Write-Host "Artifact URL: $artifactUrl"
 $projectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path
 New-Item -ItemType Directory -Force -Path $OutputFolder | Out-Null
 $appFile = Join-Path $projectPath "$($appPublisher)_$($appName)_$($appVersion).app"
-if (-Not (Test-Path $appFile)) {
-    throw "App file was not found at $appFile. Either compile the project first or add a build step that produces the .app file."
-}
-
-Copy-Item -Path $appFile -Destination $OutputFolder -Force
 
 $dotNetPackagesFolder = Join-Path $projectPath ".netPackages"
 $publishParams = @{
@@ -58,10 +53,14 @@ try {
     Write-Host "Publishing AL project to BC container..."
     Publish-NewApplicationToBcContainer @publishParams
 
+    # Verify app file was generated AFTER build completes
     if (-Not (Test-Path $appFile)) {
         throw "App file was not generated: $appFile"
     }
     Write-Host "Build succeeded: $appFile"
+    
+    # Copy to output folder
+    Copy-Item -Path $appFile -Destination $OutputFolder -Force
 }
 finally {
     if (Get-BcContainers | Where-Object { $_.Name -eq $ContainerName }) {
