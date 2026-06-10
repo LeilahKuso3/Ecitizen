@@ -1,6 +1,7 @@
 param(
     [string]$AppJsonPath = (Join-Path $PSScriptRoot "..\..\eCitizen\app.json"),
-    [string]$OutputFolder = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path "out"),
+    [string]$ProjectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path,
+    [string]$OutputFolder = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen")).Path "out"),
     [string]$ContainerName = "eCitizenBuild-$($env:GITHUB_RUN_ID)"
 )
 
@@ -24,9 +25,14 @@ if ([string]::IsNullOrWhiteSpace($artifactUrl)) {
 }
 Write-Host "Artifact URL: $artifactUrl"
 
-$projectPath = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$projectPath = Resolve-Path (Join-Path $PSScriptRoot "..\..\eCitizen").Path
 New-Item -ItemType Directory -Force -Path $OutputFolder | Out-Null
-$appFile = Join-Path $OutputFolder "$($appPublisher)_$($appName)_$($appVersion).app"
+$appFile = Join-Path $projectPath "$($appPublisher)_$($appName)_$($appVersion).app"
+if (-Not (Test-Path $appFile)) {
+    throw "App file was not found at $appFile. Either compile the project first or add a build step that produces the .app file."
+}
+
+Copy-Item -Path $appFile -Destination $OutputFolder -Force
 
 $dotNetPackagesFolder = Join-Path $projectPath ".netPackages"
 $publishParams = @{
